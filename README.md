@@ -1,550 +1,708 @@
-$root = "$env:USERPROFILE\\OneDrive\\Documents\\hyperspace-pod-cluster"
+Hyperspace Pod Cluster
 
-New-Item -ItemType Directory -Force -Path "$root\\setup","$root\\cluster","$root\\scripts","$root\\docs" | Out-Null
 
-\# README.md
 
-$readme = @"
+Turn multiple laptops into a single distributed compute cluster using Ray.
 
-\# Hyperspace Pod Cluster
 
-Turn multiple laptops into a single unified super-server.
 
-!\[Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)
 
-!\[Ray](https://img.shields.io/badge/Ray-Cluster-orange)
 
-!\[License](https://img.shields.io/badge/License-MIT-green)
 
-\## Architecture
 
 
 
 
 
-&#x20;   Master (Laptop 1) → Dashboard: http://localhost:8265
 
-&#x20;           |
 
-&#x20;┌──────────┼──────────┐
 
-Laptop 2 Laptop 3 Laptop N Worker Worker Unlimited
 
 
 
+Overview
 
 
 
+Hyperspace Pod Cluster allows multiple laptops to work together as a distributed computing cluster.
 
-\## Scale Calculator
 
-| Laptops | CPU Cores | RAM      | Capability              |
 
-|---------|-----------|----------|-------------------------|
+One laptop acts as the Master / Head Node, while additional laptops join as Worker Nodes. Ray manages task distribution across the connected machines.
 
-| 3       | \~24       | \~48 GB   | Vision, API server      |
 
-| 5       | \~40       | \~80 GB   | LLM inference           |
 
-| 8       | \~64       | \~128 GB  | Distributed analytics   |
+&#x20;                ┌─────────────────────────────┐
 
-| 10+     | \~80+      | \~160+ GB | Mini Supercomputer      |
+&#x20;                │       Laptop 1               │
 
-\## Quick Start
+&#x20;                │     MASTER / HEAD NODE      │
 
-1\. Run setup\\install.bat on ALL laptops
+&#x20;                │     Ray Dashboard :8265     │
 
-2\. Run cluster\\start\_master.bat on Laptop 1
+&#x20;                └──────────────┬──────────────┘
 
-3\. Edit MASTER\_IP in cluster\\join\_pod.bat, run on Laptop 2,3,4...
+&#x20;                               │
 
-4\. Open http://localhost:8265 to see the dashboard
+&#x20;                   Wi-Fi / Ethernet / VPN
 
-5\. Test with: python scripts\\test\_cluster.py
+&#x20;                               │
 
-\## Range and Networking
+&#x20;             ┌─────────────────┼─────────────────┐
 
-| Method          | Range      | Latency  |
+&#x20;             │                 │                 │
 
-|-----------------|------------|----------|
+&#x20;      ┌──────▼──────┐   ┌──────▼──────┐   ┌──────▼──────┐
 
-| 5 GHz Wi-Fi     | \~15 m      | 2-5 ms   |
+&#x20;      │  Laptop 2   │   │  Laptop 3   │   │  Laptop N   │
 
-| 2.4 GHz Wi-Fi   | \~40 m      | 5-15 ms  |
+&#x20;      │   WORKER    │   │   WORKER    │   │   WORKER    │
 
-| Ethernet Cable  | 100 m      | <1 ms    |
+&#x20;      │ CPU / RAM   │   │ CPU / RAM   │   │ CPU / RAM   │
 
-| Tailscale VPN   | Worldwide  | 20-80 ms |
+&#x20;      └─────────────┘   └─────────────┘   └─────────────┘
 
-\## License
+Features
 
-MIT License
+Distributed CPU computing
 
-"@
+Multiple worker laptops
 
-Set-Content "$root\\README.md" $readme -Encoding UTF8
+Ray-based cluster management
 
-\# requirements.txt
+Ray dashboard
 
-Set-Content "$root\\requirements.txt" "ray\[default]>=2.10.0`npsutil>=5.9.0" -Encoding UTF8
+Cluster information monitoring
 
-\# .gitignore
+Distributed task testing
 
-Set-Content "$root\\.gitignore" "\_\_pycache\_\_/`n\*.pyc`n\*.log`n.env" -Encoding UTF8
+Performance benchmarking
 
-\# setup/install.bat
+Windows installation scripts
 
-$install\_bat = @"
+Linux/macOS installation scripts
 
-@echo off
+Wi-Fi and Ethernet networking
 
-title Hyperspace Pod - Installation
+Tailscale support for remote networking
 
-echo ============================================
+Requirements
 
-echo    Installing Hyperspace Pod Cluster...
+Python 3.10 or higher
 
-echo ============================================
+Ray
 
-python --version >nul 2>\&1
+psutil
 
-if %errorlevel% neq 0 (
+Windows 10/11, Linux, or macOS
 
-&#x20;   echo \[ERROR] Python not found! Download from https://python.org
+Network connectivity between cluster machines
 
-&#x20;   pause \& exit /b
+Project Structure
 
-)
+hyperspace-pod-cluster/
 
-echo Installing Python packages...
+│
 
-pip install -U "ray\[default]" psutil
+├── setup/
 
-call "%\~dp0firewall\_setup.bat"
+│   ├── install.bat
 
-echo ============================================
+│   ├── install.sh
 
-echo    Installation Complete!
+│   └── firewall\_setup.bat
 
-echo ============================================
+│
 
-pause
+├── cluster/
 
-"@
+│   ├── start\_master.bat
 
-Set-Content "$root\\setup\\install.bat" $install\_bat -Encoding UTF8
+│   ├── start\_master.sh
 
-\# setup/install.sh
+│   ├── join\_pod.bat
 
-Set-Content "$root\\setup\\install.sh" "#!/bin/bash`necho Installing Hyperspace Pod...`npip3 install -U 'ray\[default]' psutil`necho Done!" -Encoding UTF8
+│   ├── join\_pod.sh
 
-\# setup/firewall\_setup.bat
+│   └── stop\_cluster.bat
 
-$fw = @"
+│
 
-@echo off
+├── scripts/
 
-echo Opening firewall ports for Hyperspace Pod...
+│   ├── test\_cluster.py
 
-netsh advfirewall firewall add rule name="HyperPod-Head" dir=in action=allow protocol=TCP localport=6379
+│   ├── cluster\_info.py
 
-netsh advfirewall firewall add rule name="HyperPod-Dashboard" dir=in action=allow protocol=TCP localport=8265
+│   └── benchmark.py
 
-netsh advfirewall firewall add rule name="HyperPod-Worker" dir=in action=allow protocol=TCP localport=10001
+│
 
-echo Done. Ports 6379, 8265, 10001 are open.
+├── docs/
 
-"@
+│   ├── SETUP\_GUIDE.md
 
-Set-Content "$root\\setup\\firewall\_setup.bat" $fw -Encoding UTF8
+│   ├── NETWORKING.md
 
-\# cluster/start\_master.bat
+│   └── TROUBLESHOOTING.md
 
-$master = @"
+│
 
-@echo off
+├── requirements.txt
 
-title Hyperspace Pod - MASTER NODE (Laptop 1)
+├── .gitignore
 
-echo ============================================
+└── README.md
 
-echo    MASTER NODE Starting on Laptop 1
+Quick Start
 
-echo ============================================
+1\. Install on All Laptops
 
-echo Your IP address:
+Windows
 
-ipconfig | findstr /i "IPv4"
 
-echo Dashboard: http://localhost:8265
 
-ray stop >nul 2>\&1
+Run on every laptop:
 
-ray start --head --port=6379 --dashboard-host=0.0.0.0 --dashboard-port=8265
 
-echo ============================================
 
-echo  MASTER RUNNING - Open http://localhost:8265
+setup\\install.bat
 
-echo ============================================
+Linux/macOS
 
-pause
 
-"@
 
-Set-Content "$root\\cluster\\start\_master.bat" $master -Encoding UTF8
+Run:
 
-\# cluster/start\_master.sh
 
-Set-Content "$root\\cluster\\start\_master.sh" "#!/bin/bash`nray stop 2>/dev/null`nray start --head --port=6379 --dashboard-host=0.0.0.0 --dashboard-port=8265`necho Dashboard: http://localhost:8265" -Encoding UTF8
 
-\# cluster/join\_pod.bat
+bash setup/install.sh
 
-$join = @"
+2\. Find the Master Laptop IP
 
-@echo off
 
-title Hyperspace Pod - WORKER NODE
 
-echo ============================================
+On Laptop 1, run:
 
-echo    Joining Hyperspace Pod as WORKER
 
-echo ============================================
 
-:: EDIT THIS LINE with Laptop 1 IP address
+ipconfig
+
+
+
+Find the IPv4 address.
+
+
+
+Example:
+
+
+
+192.168.1.50
+
+3\. Start the Master Node
+
+
+
+On Laptop 1 only, run:
+
+
+
+cluster\\start\_master.bat
+
+
+
+The master starts the Ray head node.
+
+
+
+Dashboard:
+
+
+
+http://localhost:8265
+
+4\. Connect Worker Laptops
+
+
+
+On each worker laptop, open:
+
+
+
+cluster\\join\_pod.bat
+
+
+
+Edit:
+
+
 
 set MASTER\_IP=192.168.1.50
 
-echo Connecting to %MASTER\_IP%:6379 ...
 
-ray stop >nul 2>\&1
 
-ray start --address=%MASTER\_IP%:6379
+Replace 192.168.1.50 with the actual IP address of Laptop 1.
 
-echo ============================================
 
-echo  SUCCESS! This laptop is now a Worker Node.
 
-echo  Dashboard: http://%MASTER\_IP%:8265
+Then run:
 
-echo ============================================
 
-pause
 
-"@
+cluster\\join\_pod.bat
 
-Set-Content "$root\\cluster\\join\_pod.bat" $join -Encoding UTF8
 
-\# cluster/join\_pod.sh
 
-Set-Content "$root\\cluster\\join\_pod.sh" "#!/bin/bash`nMASTER\_IP=`"192.168.1.50`"`nray stop 2>/dev/null`nray start --address=`"`$MASTER\_IP:6379`"`necho SUCCESS - Worker connected!" -Encoding UTF8
+Repeat this on Laptop 2, Laptop 3, Laptop 4, and additional worker machines.
 
-\# cluster/stop\_cluster.bat
 
-Set-Content "$root\\cluster\\stop\_cluster.bat" "@echo off`necho Shutting down Hyperspace Pod...`nray stop`necho Done.`npause" -Encoding UTF8
 
-\# scripts/test\_cluster.py
+Ray Dashboard
 
-$test\_py = @"
 
-import ray, socket, time
 
-ray.init(address='auto')
+On the master laptop:
 
-nodes = ray.nodes()
 
-total\_cpu = sum(n\['Resources'].get('CPU', 0) for n in nodes)
 
-total\_ram = sum(n\['Resources'].get('memory', 0) for n in nodes) / (1024\*\*3)
+http://localhost:8265
 
-print(f"\\n{'='\*55}")
 
-print(f"  HYPERSPACE POD - CLUSTER STATUS")
 
-print(f"{'='\*55}")
+From another laptop:
 
-print(f"  Connected Machines : {len(nodes)}")
 
-print(f"  Total CPU Cores    : {int(total\_cpu)}")
 
-print(f"  Total RAM          : {total\_ram:.1f} GB")
+http://MASTER\_IP:8265
 
-print(f"{'='\*55}")
 
-for i, n in enumerate(nodes, 1):
 
-&#x20;   cpu = int(n\['Resources'].get('CPU', 0))
+Example:
 
-&#x20;   ram = n\['Resources'].get('memory', 0) / (1024\*\*3)
 
-&#x20;   print(f"  Laptop {i}: {n\['NodeName']:<20} {cpu} cores | {ram:.1f} GB")
 
-print(f"{'='\*55}\\n")
+http://192.168.1.50:8265
 
-@ray.remote
 
-def run\_task(task\_id):
 
-&#x20;   hostname = socket.gethostname()
+The dashboard can be used to monitor the Ray cluster.
 
-&#x20;   time.sleep(0.5)
 
-&#x20;   return f"Task #{task\_id:02d} completed on \[{hostname}]"
 
-print("Dispatching 12 parallel tasks across all laptops...")
+Test the Cluster
 
-results = ray.get(\[run\_task.remote(i) for i in range(12)])
 
-for r in results:
 
-&#x20;   print(f"  {r}")
+Run:
 
-print("\\nAll tasks completed successfully!")
 
-ray.shutdown()
 
-"@
+python scripts/test\_cluster.py
 
-Set-Content "$root\\scripts\\test\_cluster.py" $test\_py -Encoding UTF8
 
-\# scripts/cluster\_info.py
 
-$info\_py = @"
+The test dispatches multiple tasks through Ray and reports the machines that execute them.
 
-import ray
 
-ray.init(address='auto')
 
-nodes = ray.nodes()
+Example:
 
-total\_cpu = sum(n\['Resources'].get('CPU', 0) for n in nodes)
 
-total\_ram = sum(n\['Resources'].get('memory', 0) for n in nodes) / (1024\*\*3)
 
-total\_gpu = sum(n\['Resources'].get('GPU', 0) for n in nodes)
+HYPERSPACE POD - CLUSTER STATUS
 
-print(f"\\n{'='\*55}")
 
-print(f"  HYPERSPACE POD - LIVE INFO")
 
-print(f"{'='\*55}")
 
-print(f"  Nodes : {len(nodes)}  |  CPUs : {int(total\_cpu)}  |  RAM : {total\_ram:.1f} GB  |  GPUs : {int(total\_gpu)}")
 
-print(f"{'='\*55}")
+Connected Machines : 3
 
-for i, n in enumerate(nodes, 1):
+Total CPU Cores    : 24
 
-&#x20;   cpu = int(n\['Resources'].get('CPU', 0))
+Total RAM          : 48.0 GB
 
-&#x20;   ram = n\['Resources'].get('memory', 0) / (1024\*\*3)
 
-&#x20;   status = "ALIVE" if n\['Alive'] else "DOWN"
 
-&#x20;   print(f"  \[{status}] Laptop {i}: {n\['NodeName']:<20} {cpu} cores | {ram:.0f} GB")
 
-print(f"{'='\*55}\\n")
 
-ray.shutdown()
+Dispatching 12 parallel tasks across all laptops...
 
-"@
 
-Set-Content "$root\\scripts\\cluster\_info.py" $info\_py -Encoding UTF8
 
-\# scripts/benchmark.py
 
-$bench\_py = @"
 
-import ray, time, socket
+Task #00 completed on \[Laptop-1]
 
-ray.init(address='auto')
+Task #01 completed on \[Laptop-2]
 
-@ray.remote
+Task #02 completed on \[Laptop-3]
 
-def heavy\_compute(n):
+Cluster Information
 
-&#x20;   return socket.gethostname(), sum(i\*i for i in range(n))
 
-print("Running benchmark: 20 tasks x 500K operations...")
 
-start = time.time()
+To display information about the connected machines:
 
-results = ray.get(\[heavy\_compute.remote(500\_000) for \_ in range(20)])
 
-elapsed = time.time() - start
 
-machines = set(r\[0] for r in results)
+python scripts/cluster\_info.py
 
-print(f"Completed in    : {elapsed:.2f} seconds")
 
-print(f"Machines used   : {len(machines)} ({', '.join(machines)})")
 
-print(f"Throughput      : {20/elapsed:.1f} tasks/second")
+The script reports:
 
-ray.shutdown()
 
-"@
 
-Set-Content "$root\\scripts\\benchmark.py" $bench\_py -Encoding UTF8
+Number of nodes
 
-\# docs/SETUP\_GUIDE.md
+Total CPU resources
 
-$setup\_doc = @"
+Total RAM
 
-\# Full Setup Guide
+Total GPU resources
 
-\## Requirements
+Individual node status
 
-\- Python 3.10+ on every laptop
+CPU resources per node
 
-\- All laptops on the same Wi-Fi or Tailscale for remote
+RAM per node
 
-\## Steps
+Benchmark
 
-\### 1. Install on ALL laptops
 
-Windows: setup\\install.bat
 
-Linux/macOS: bash setup/install.sh
+Run:
 
-\### 2. Find Laptop 1 IP
 
-PowerShell: ipconfig (look for IPv4 Address e.g. 192.168.1.50)
 
-\### 3. Start Master (Laptop 1 ONLY)
+python scripts/benchmark.py
 
-Double-click: cluster\\start\_master.bat
 
-\### 4. Join Workers (Laptop 2, 3, 4...)
 
-Open cluster\\join\_pod.bat in Notepad.
+The benchmark executes distributed compute tasks and reports:
 
-Change MASTER\_IP=192.168.1.50 to Laptop 1 actual IP.
 
-Save and double-click.
 
-\### 5. Dashboard
+Execution time
 
-http://LAPTOP\_1\_IP:8265
+Number of machines used
 
-\### 6. Test
+Throughput
 
-python scripts\\test\_cluster.py
 
-"@
 
-Set-Content "$root\\docs\\SETUP\_GUIDE.md" $setup\_doc -Encoding UTF8
+Example:
 
-\# docs/NETWORKING.md
 
-$net\_doc = @"
 
-\# Networking Guide
+Running benchmark: 20 tasks x 500K operations...
 
-\## Local Wi-Fi
 
-Range \~40m. Use 5 GHz band. All laptops on same router.
 
-\## Wired Ethernet (Best)
 
-Up to 100m per cable. Buy a Gigabit Ethernet Switch (\~$20).
 
-\## Tailscale (No range limit - Worldwide)
+Completed in    : XX.XX seconds
 
-1\. Install from https://tailscale.com on all laptops
+Machines used   : X
 
-2\. Sign in with the SAME account
+Throughput      : X.X tasks/second
 
-3\. Each laptop gets a 100.x.y.z IP
+Networking
 
-4\. Use that IP in join\_pod.bat
+Wi-Fi
 
-5\. Works from anywhere on Earth!
 
-\## Power Settings (Important!)
 
-Prevent laptops from sleeping:
+For a local cluster, connect all laptops to the same Wi-Fi network.
 
-\- Settings > Power > Never sleep when plugged in
 
-\- Control Panel > Power Options > Lid close > Do nothing
 
-"@
+A 5 GHz Wi-Fi connection is recommended for better throughput.
 
-Set-Content "$root\\docs\\NETWORKING.md" $net\_doc -Encoding UTF8
 
-\# docs/TROUBLESHOOTING.md
 
-$trouble\_doc = @"
+Ethernet
 
-\# Troubleshooting
 
-\## Worker cannot connect
 
-\- Check MASTER\_IP is correct (run ipconfig on Laptop 1)
+Gigabit Ethernet can provide lower latency and more consistent performance than Wi-Fi.
 
-\- Run setup\\firewall\_setup.bat as Administrator on Laptop 1
 
-\- Both laptops must be on same Wi-Fi
 
-\## Dashboard not loading
+Recommended for heavy distributed workloads.
 
-\- Laptop 1: http://localhost:8265
 
-\- Other laptops: http://LAPTOP1\_IP:8265
 
-\## ray command not found
+Tailscale
 
-\- Re-run install.bat
 
-\- Reinstall Python with Add to PATH checked
 
-\## Laptop drops from cluster
+Tailscale can be used when machines are not on the same local network.
 
-\- Disable sleep mode in Power Settings
 
-\- Set lid close to Do Nothing in Power Options
 
-\## Wi-Fi too slow
+General setup:
 
-\- Switch to 5 GHz band
 
-\- Use Ethernet Switch + LAN cables for best speed
 
-"@
+Install Tailscale on all laptops.
 
-Set-Content "$root\\docs\\TROUBLESHOOTING.md" $trouble\_doc -Encoding UTF8
+Sign in to the same Tailscale network.
 
-Write-Host ""
+Find the master's Tailscale IP address.
 
-Write-Host "============================================" -ForegroundColor Green
+Set that address as MASTER\_IP.
 
-Write-Host "  All files created! Pushing to GitHub..." -ForegroundColor Green
+Start the worker node.
 
-Write-Host "============================================" -ForegroundColor Green
+Firewall Configuration
 
-Set-Location $root
 
-git init
 
-git add .
+On Windows, run:
 
-git commit -m "Initial commit: Hyperspace Pod Cluster - multi-laptop super server"
 
-git branch -M main
 
-git remote add origin https://github.com/Pushpavardhan/hyperspace-pod-cluster.git
+setup\\firewall\_setup.bat
 
-git push -u origin main
 
-Write-Host ""
 
-Write-Host "============================================" -ForegroundColor Cyan
+The script configures the required firewall rules for the cluster.
 
-Write-Host "  DONE! Repo is live at:" -ForegroundColor Cyan
 
-Write-Host "  https://github.com/Pushpavardhan/hyperspace-pod-cluster" -ForegroundColor Cyan
 
-Write-Host "============================================" -ForegroundColor Cyan
+Administrator privileges may be required.
+
+
+
+Power Settings
+
+
+
+For long-running worker nodes:
+
+
+
+Disable automatic sleep while plugged in.
+
+Prevent the laptop from sleeping when the lid is closed if required.
+
+Keep worker laptops connected to power during long workloads.
+
+Use a stable network connection.
+
+Stopping the Cluster
+
+
+
+To stop Ray on a machine:
+
+
+
+cluster\\stop\_cluster.bat
+
+
+
+Alternatively:
+
+
+
+ray stop
+
+Scaling
+
+
+
+The cluster can contain multiple worker machines.
+
+
+
+Example:
+
+
+
+Laptops	Configuration
+
+2	1 Master + 1 Worker
+
+3	1 Master + 2 Workers
+
+5	1 Master + 4 Workers
+
+8	1 Master + 7 Workers
+
+10+	Larger distributed cluster
+
+
+
+Actual performance depends on the CPU, RAM, GPU, network bandwidth, latency, and workload of each machine.
+
+
+
+Example Use Cases
+
+
+
+Hyperspace Pod Cluster can be used for:
+
+
+
+Distributed Python workloads
+
+Parallel computation
+
+Machine-learning experiments
+
+Data processing
+
+Computer-vision workloads
+
+Batch processing
+
+Distributed benchmarking
+
+Multi-machine development and testing
+
+Troubleshooting
+
+Worker Cannot Connect
+
+
+
+Check the following:
+
+
+
+MASTER\_IP
+
+
+
+Make sure it points to the master laptop's reachable IP address.
+
+
+
+Also verify:
+
+
+
+Both machines are connected to the network.
+
+The master is running.
+
+Firewall rules are configured.
+
+Port 6379 is reachable.
+
+Dashboard Does Not Load
+
+
+
+On the master:
+
+
+
+http://localhost:8265
+
+
+
+From another laptop:
+
+
+
+http://MASTER\_IP:8265
+
+ray Command Not Found
+
+
+
+Run the installation script again:
+
+
+
+setup\\install.bat
+
+
+
+Or install Ray manually:
+
+
+
+pip install -U "ray\[default]"
+
+Worker Disconnects
+
+
+
+Check:
+
+
+
+Network stability
+
+Master IP address
+
+Firewall configuration
+
+Laptop sleep settings
+
+Power connection
+
+Slow Wi-Fi
+
+
+
+Try:
+
+
+
+5 GHz Wi-Fi
+
+Ethernet
+
+A better Wi-Fi access point
+
+Reducing network traffic
+
+Using wired networking for heavy workloads
+
+Documentation
+
+
+
+Detailed documentation is available in:
+
+
+
+docs/
+
+├── SETUP\_GUIDE.md
+
+├── NETWORKING.md
+
+└── TROUBLESHOOTING.md
+
+Technology Stack
+
+Technology	Purpose
+
+Python	Application and cluster scripts
+
+Ray	Distributed computing framework
+
+psutil	System resource information
+
+Windows Batch	Windows automation
+
+Bash	Linux/macOS automation
+
+Wi-Fi/Ethernet	Local networking
+
+Tailscale	Remote networking
+
+License
+
+
+
+This project is licensed under the MIT License.
 
